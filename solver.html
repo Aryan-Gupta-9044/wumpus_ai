@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wumpus World - AI Solver</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Additional styles for the solver page */
+        .solver-content {
+            padding: 2rem;
+        }
+        
+        .solver-section {
+            margin-bottom: 2rem;
+        }
+        
+        .solver-section h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        
+        .solver-section p {
+            margin-bottom: 1rem;
+            line-height: 1.7;
+        }
+        
+        .algorithm-steps {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            margin: 1.5rem 0;
+        }
+        
+        .algorithm-steps h3 {
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+        
+        .algorithm-steps ol {
+            padding-left: 1.5rem;
+        }
+        
+        .algorithm-steps li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .code-block {
+            background-color: #f0f0f0;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 1rem 0;
+            white-space: pre-wrap;
+        }
+        
+        .back-to-game {
+            margin-top: 2rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>Wumpus World</h1>
+            <nav>
+                <ul>
+                    <li><a href="/">Game</a></li>
+                    <li><a href="/solver" class="active">AI Solver</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="solver-content">
+                <div class="solver-section">
+                    <h2>The Wumpus World Problem</h2>
+                    <p>The Wumpus World is a classic AI problem introduced by Stuart Russell and Peter Norvig in their book "Artificial Intelligence: A Modern Approach." It's a grid-based environment where an agent must navigate through a dangerous cave to find gold and return to the starting point.</p>
+                    
+                    <p>The cave contains:</p>
+                    <ul>
+                        <li><strong>Wumpus</strong>: A monster that will eat the agent if they enter its square.</li>
+                        <li><strong>Pits</strong>: Holes that will cause the agent to fall to their death.</li>
+                        <li><strong>Gold</strong>: The treasure the agent is trying to find.</li>
+                    </ul>
+                    
+                    <p>The agent can perceive:</p>
+                    <ul>
+                        <li><strong>Stench</strong>: When adjacent to a Wumpus.</li>
+                        <li><strong>Breeze</strong>: When adjacent to a pit.</li>
+                        <li><strong>Glitter</strong>: When in the same square as the gold.</li>
+                    </ul>
+                </div>
+                
+                <div class="solver-section">
+                    <h2>The AI Solver Algorithm</h2>
+                    <p>Our AI solver uses a knowledge-based approach to safely navigate through the Wumpus World. It maintains a knowledge base of what it knows about each square and updates this knowledge as it explores the environment.</p>
+                    
+                    <div class="algorithm-steps">
+                        <h3>Algorithm Steps:</h3>
+                        <ol>
+                            <li>Initialize the knowledge base with the starting square as safe.</li>
+                            <li>Update the knowledge base with percepts from the current square.</li>
+                            <li>Mark squares as safe or dangerous based on logical inference.</li>
+                            <li>Find a path to the nearest safe unvisited square or to the gold.</li>
+                            <li>If the agent has the gold, find a path back to the starting point.</li>
+                            <li>If stuck, try to take a calculated risk based on probabilities.</li>
+                        </ol>
+                    </div>
+                    
+                    <p>The solver uses breadth-first search (BFS) to find paths through safe squares, ensuring the agent takes the shortest safe path to its goal.</p>
+                </div>
+                
+                <div class="solver-section">
+                    <h2>Knowledge Representation</h2>
+                    <p>The agent maintains several data structures to represent its knowledge:</p>
+                    
+                    <div class="code-block">
+# Agent's internal state
+self.knowledge = {
+    'visited': [[False for _ in range(self.size)] for _ in range(self.size)],
+    'safe': [[False for _ in range(self.size)] for _ in range(self.size)],
+    'possible_wumpus': [[True for _ in range(self.size)] for _ in range(self.size)],
+    'possible_pit': [[True for _ in range(self.size)] for _ in range(self.size)],
+}
+
+# Start cell is known safe
+start_x, start_y = self.agent_pos
+self.knowledge['visited'][start_x][start_y] = True
+self.knowledge['safe'][start_x][start_y] = True
+self.knowledge['possible_wumpus'][start_x][start_y] = False
+self.knowledge['possible_pit'][start_x][start_y] = False</div>
+                    
+                    <p>When the agent perceives a breeze or stench, it updates its knowledge accordingly:</p>
+                    
+                    <div class="code-block">
+# Update safety based on lack of percepts
+if not perceived_stench:
+    for nx, ny in adjacent_cells:
+        self.knowledge['possible_wumpus'][nx][ny] = False
+if not perceived_breeze:
+    for nx, ny in adjacent_cells:
+        self.knowledge['possible_pit'][nx][ny] = False</div>
+                </div>
+                
+                <div class="solver-section">
+                    <h2>Path Finding</h2>
+                    <p>The agent uses breadth-first search to find paths through safe squares:</p>
+                    
+                    <div class="code-block">
+def _find_safe_path(self, start, goal_condition_func):
+    """Uses BFS to find shortest path in known safe squares."""
+    q = collections.deque([(start, [])]) # ((x, y), path_list)
+    visited_path = {start}
+
+    while q:
+        (curr_x, curr_y), path = q.popleft()
+
+        for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            next_x, next_y = curr_x + dx, curr_y + dy
+            
+            if self._is_valid(next_x, next_y) and \
+               self.knowledge['safe'][next_x][next_y] and \
+               (next_x, next_y) not in visited_path:
+                
+                new_path = path + [(dx, dy)]
+                if goal_condition_func((next_x, next_y)):
+                    return new_path # Found path
+                
+                visited_path.add((next_x, next_y))
+                q.append(((next_x, next_y), new_path))</div>
+                </div>
+                
+                <div class="solver-section">
+                    <h2>Risk Assessment</h2>
+                    <p>If the agent finds itself stuck with no safe unvisited squares, it may need to take a calculated risk. In this case, it assesses the risk of each square and chooses the least risky option:</p>
+                    
+                    <div class="code-block">
+def _find_risky_path_home(self, home_x, home_y):
+    """When stuck with gold, try to find any path home, accepting some risk."""
+    # Simple BFS through all squares, weighing risk but not avoiding all risk
+    queue = deque([(self.agent_pos, [])])  # (position, path)
+    visited = {self.agent_pos}
+    
+    while queue:
+        (x, y), path = queue.popleft()
+        
+        if (x, y) == (home_x, home_y):
+            return path  # Found a path home!
+        
+        for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            nx, ny = x + dx, y + dy
+            
+            if self._is_valid(nx, ny) and (nx, ny) not in visited:
+                # Avoid the wumpus location if known, but allow some risk otherwise
+                if (self.world.wumpus_pos is not None and (nx, ny) != self.world.wumpus_pos) or \
+                   not self.knowledge['possible_wumpus'][nx][ny]:
+                    visited.add((nx, ny))
+                    new_path = path + [(dx, dy)]
+                    queue.append(((nx, ny), new_path))</div>
+                </div>
+                
+                <div class="back-to-game">
+                    <a href="/" class="btn primary-btn">Back to Game</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2023 Wumpus World AI Solver</p>
+    </footer>
+</body>
+</html>
